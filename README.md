@@ -1,75 +1,270 @@
+### CICD-with-Kubernetes
+
+### Labs Server List
+| Server Name        | Server Hostname               | Specs                           | IP Address     | Port Forwarding(ssh) | Port Forwarding(http) |
+| ------------------ | ----------------------------- | ------------------------------- | -------------- | -------------------- | --------------------- |
+| k8s-control        | k8s-control.ideacube.co.kr    | 2 vCPU, 4 GB RAM, 100GB Disk    | 192.168.15.101 |  25 -> 22            |  -                    |
+| worker-node-01     | worker-node-01.ideacube.co.kr | 2 vCPU, 4 GB RAM, 100GB Disk    | 192.168.15.102 |  26 -> 22            |  -                    |
+| worker-node-02     | worker-node-02.ideacube.co.kr | 2 vCPU, 4 GB RAM, 100GB Disk    | 192.168.15.102 |  27 -> 22            |  -                    |
+
+### Visual Studio Code & VirtualBox
+
+          VirtualBox
+          Visual Studio Code
+          
+          VBoxManage setextradata global GUI/Input/HostKeyCombination 162,164
+          VBoxManage natnetwork add --netname NatNetwork --network "192.168.15.0/24" --enable --dhcp off --port-forward-4 "ssh:tcp:[]:25:[192.168.15.101]:22"
+          VBoxManage natnetwork modify --netname NatNetwork --port-forward-4 "ssh1:tcp:[]:26:[192.168.15.102]:22"
+          VBoxManage natnetwork modify --netname NatNetwork --port-forward-4 "ssh2:tcp:[]:27:[192.168.15.103]:22"
+
+          VBoxManage natnetwork modify --netname NatNetwork --port-forward-4 "ssh3:tcp:[]:8080:[192.168.15.30]:8080"
+          VBoxManage natnetwork modify --netname NatNetwork --port-forward-4 "ssh4:tcp:[]:80:[192.168.15.40]:80"
+          VBoxManage natnetwork modify --netname NatNetwork --port-forward-4 "ssh5:tcp:[]:8081:[192.168.15.50]:80"
+          
+          Vboxmanage natnetwork list
+              
+          code --install-extension MS-CEINTL.vscode-language-pack-ko
+          code --install-extension ms-vscode-remote.remote-ssh
+          code --install-extension ms-azuretools.vscode-docker
+          code --install-extension vscjava.vscode-java-pack
+          code --install-extension vscjava.vscode-gradle
+          code --install-extension vmware.vscode-boot-dev-pack
+
+### Ubuntu 64bit Server 22.04.x(Minimized)
+- After installing ubuntu 64 server minimum specifications
+- Create User => user1/1234
+          
+          sudo su
+          apt-get install net-tools iputils-ping
+          printf "Server Name(Each Server)" > /etc/hostname
+          printf "\n192.168.15.30 gitlab.ideacube.co.kr\n192.168.15.40 jenkins.ideacube.co.kr\n192.168.15.50 harbor.ideacube.co.kr\n192.168.15.101 k8s-control.ideacube.co.kr\n192.168.15.102 worker-node-01.ideacube.co.kr\n192.168.15.103 worker-node-02.ideacube.co.kr\n\n" >> /etc/hosts
+          
+          cat /etc/hosts
+          cat /etc/hostname
+          cat /etc/netplan/00-installer-config.yaml
+          => check ip or change ip
+          netplan apply
+
+### Control
+
+          kubeadm init --pod-network-cidr 10.10.0.0/16 --node-name k8s-control
+          kubeadm token create --print-join-command
+          
+          curl -LO https://github.com/cilium/cilium-cli/releases/latest/download/cilium-linux-amd64.tar.gz     
+          tar xzvfC cilium-linux-amd64.tar.gz /usr/local/bin
+          rm cilium-linux-amd64.tar.gz
+          cilium install --set ipam.operator.clusterPoolIPv4PodCIDRList=10.10.0.0/16
+          cilium status
+
+          #################################
+          # kubeadm 초기화
+          $ sudo kubeadm reset
+          $ sudo systemctl restart kubelet
+          $ sudo reboot
+          ##################################
+
+### Etc
+- Docker install Ubuntu
+ 
+          sudo apt update && sudo apt full-upgrade
+          sudo apt install apt-transport-https ca-certificates curl 
+          
+          # Add Docker's official GPG key:
+          sudo apt-get update
+          sudo apt-get install ca-certificates curl
+          sudo install -m 0755 -d /etc/apt/keyrings
+          sudo curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
+          sudo chmod a+r /etc/apt/keyrings/docker.asc
+          
+          # Add the repository to Apt sources:
+          echo \
+            "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu \
+            $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | \
+            sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+          sudo apt-get update
+          
+          sudo apt-get install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+          
+          sudo docker run hello-world
+          sudo groupadd docker
+          sudo usermod -aG docker $USER
+          => logout
+          newgrp docker
+          docker run hello-world
+
+- Java(17)
+
+          sudo apt update
+          sudo apt install fontconfig openjdk-17-jre
+          java -version
+
+- Git
+ 
+          sudo apt install git
+     
+- Maven 
+
+          sudo apt install maven
+
+- Git config(Local)
+
+          git config user.name "Dennis"
+          git config user.email "itgenius1004@gmail.com"
 
 
+- Git config(Global)
 
-# Argo CD in Practice
+          git config --global user.name "Dennis"
+          git config --global user.email "itgenius1004@gmail.com"
 
-<a href="https://www.packtpub.com/product/argo-cd-in-practice/9781803233321?utm_source=github&utm_medium=repository&utm_campaign=9781803233321"><img src="https://static.packt-cdn.com/products/9781803233321/cover/smaller" alt="Early Access" height="256px" align="right"></a>
+- Git Management
 
-This is the code repository for [Argo CD in Practice](https://www.packtpub.com/product/argo-cd-in-practice/9781803233321?utm_source=github&utm_medium=repository&utm_campaign=9781803233321), published by Packt.
+          git config --list
+          git config --unset user.name
+          git config --unset user.email
 
-**The GitOps way of managing cloud-native applications**
+          git config --unset --global user.name
+          git config --unset --global user.email
 
-## What is this book about?
-GitOps follows the practices of infrastructure as code (IaC), allowing developers to use their day-to-day tools and practices such as source control and pull requests to manage apps. With this book, you’ll understand how to apply GitOps bootstrap clusters in a repeatable manner, build CD pipelines for cloud native apps running on Kubernetes, and minimize the failure of deployments. 
-
-This book covers the following exciting features:
-Understand GitOps principles and how they relate to IaC
-Discover how Argo CD sets the background for reconciling Git state with the cluster state
-Run Argo CD in production with an emphasis on reliability and troubleshooting
-Bootstrap Kubernetes clusters with essential utilities following the GitOps approach
-Set up a CD pipeline and minimize the failure of deployments
-Explore ways to verify and validate the YAML you put together when working with Kubernetes
-Understand the democratization of GitOps and how the GitOps engine will enable its further adoption
-
-If you feel this book is for you, get your [copy](https://www.amazon.com/dp/180323332X) today!
-
-<a href="https://www.packtpub.com/?utm_source=github&utm_medium=banner&utm_campaign=GitHubBanner"><img src="https://raw.githubusercontent.com/PacktPublishing/GitHub/master/GitHub.png" 
-alt="https://www.packtpub.com/" border="5" /></a>
-
-## Instructions and Navigations
-All of the code is organized into folders. For example, ch01.
-
-The code will look like the following:
-```
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: argocd-cm
-data:
-  accounts.alina: apiKey, login
-```
-
-**Following is what you need for this book:**
-If you’re a software developer, DevOps engineer, or SRE who is responsible for building CD pipelines for projects running on Kubernetes and wants to advance in your career, this book is for you. Basic knowledge of Kubernetes, Helm, or Kustomize and CD pipelines will help you to get the most out of this book.
-
-With the following software and hardware list you can run all code files present in the book (Chapter 1-9).
-### Software and Hardware List
-| Software required | OS required |
-| ------------------------------------ | ----------------------------------- |
-| Argo CD v2.1 and v2.2 | Windows, macOS, or Linux |
+          git remote -v
+          git push --force myapp-test
+          
+          git config credential.helper store
+          git config credential.helper store --global
+          
+          git config --unset credential.helper
+          git config --global --unset credential.helper
 
 
-We also provide a PDF file that has color images of the screenshots/diagrams used in this book. [Click here to download it](https://packt.link/HfXCL).
+- Generate SSH Key
+ 
+          ssh-keygen -t rsa -b 4096
+          cd ~/.ssh
+          cat id_rsa.pub >> ~/.ssh/authorized_keys
+          cat authorized_keys
+          cat id_rsa
+          # Usage Visual Studio Code
+          copy id_rsa on Host Windows(C:\Users\사용자\.ssh)
 
-### Related products
-* The Kubernetes Bible [[Packt]](https://www.packtpub.com/product/the-kubernetes-bible/9781838827694?utm_source=github&utm_medium=repository&utm_campaign=9781838827694) [[Amazon]](https://www.amazon.com/dp/1838827692)
+- Docker Security Issues
 
-* Learning DevOps - Second Edition [[Packt]](https://www.packtpub.com/product/learning-devops-second-edition/9781801818964?utm_source=github&utm_medium=repository&utm_campaign=9781801818964) [[Amazon]](https://www.amazon.com/dp/1801818967)
+          // Security Issues 
+          sudo chmod 666 /var/run/docker.sock or sudo chown root:docker /var/run/docker.sock
+          sudo usermod -a -G docker jenkins
 
-## Get to Know the Authors
-**Spiros Economakis**
-started as a Software Engineer in 2010 and went through a series of jobs and roles from Software Engineer, Software Architect to Head of Cloud. In 2013 founded its own startup and that was the first touch with DevOps culture and built with a small team a couple of CI/CD pipelines for a microservice architecture and mobile apps releases. After this in most of the companies involved to influence DevOps culture and automation.
+- Etc
 
-In 2019 started as an SRE in Lenses (acquired by Celonis) and soon influenced the organization with Kubernetes, GitOps, Cloud and transitioned to a position as Head of Cloud where he introduced GitOps across the whole company and used Argo CD for bootstrapping k8s clusters with utilities and continuous delivery applications. Now he works in an open-source company which is called Mattermost as a Senior Engineering Manager/SRE where he transformed the old GitOps approach (fluxcd) to GitOps v2.0 with Argo CD and built a scalable architecture for multi-tenancy.
+          kubectl create -f nginx-pod.xml
+          kubectl get pods
+          kubectl get describe pod nginx
+          kubectl port-forward nginx 9000:80
+          kubectl delete pod nginx
+          
+          kubectl apply -f declarative-deployment.yaml
+          kubectl get deployments
+          kubectl apply -f declarative-deployment.yaml
+          kubectl diff -f declarative-deployment.yaml
+          
+          kubectl get deployment nginx-declarative -o=yaml
+
+  - ArgoCD
+
+          kubectl create namespace argocd
+          kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+
+          kubectl get secret argocd-initial-admin-secret -n argocd -o jsonpath="{.data.password}" | base64 -d && echo
 
 
-**Liviu Costea**
-started as a developer in the early 2000 and his career path took him to different roles from Developer to Coding Architect and from Team Lead to CTO. In 2012 he transitioned to DevOps, when at a small company, someone had to start working on pipelines and automation because the traditional way wasn’t scalable anymore.
+          kubectl delete -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+          kubectl delete namespace argocd
+          
+- Jenkins Script
 
-In 2018 he started with the Platform Team and then he was the Tech Lead in the Release Team at Mambu, where they designed most of the CI/CD pipelines, adopting GitOps practices. They have been live with Argo CD since 2019. More recently he joined Juni, a promising startup, where they are planning the GitOps adoption. For his contributions to OSS projects, including Argo CD, he was named CNCF Ambassador in August 2020.
+          node {
+              APP_NAME = 'myapp'
+              RELEASE = '1.0.0'
+              DOCKER_USER = 'dennis1945'
+              DOCKER_PASS = 'dockerlogin'
+              IMAGE_NAME = "${DOCKER_USER}" + "/" + "${APP_NAME}"
+              IMAGE_TAG = "${RELEASE}-${BUILD_NUMBER}"
+              stage("Cleanup Workspace"){
+                  cleanWs()
+              }
+              stage("Checkout from SCM"){
+                  git branch: 'main', credentialsId: 'gitlab_idpwd', url: 'http://gitlab.ideacube.co.kr/root/myapp.git'
+              }
+              stage("Build Application"){
+                  sh "mvn clean package"
+              }
+              stage("Test Application"){
+                  sh "mvn test"
+              }
+              stage("Build & Push Docker Image") {
+                  docker.withRegistry('https://index.docker.io/v1/',DOCKER_PASS) {
+                      docker_image = docker.build "${IMAGE_NAME}"
+                  }
+                  docker.withRegistry('https://index.docker.io/v1/',DOCKER_PASS) {
+                      docker_image.push("${IMAGE_TAG}")
+                      docker_image.push('latest')
+                  }
+              }
+              stage("SSH Into k8s Server") {
+                  def remote = [:]
+                  remote.name = 'k8s'
+                  remote.host = 'k8s-control.ideacube.co.kr'
+                  remote.user = 'user1'
+                  remote.password = '1234'
+                  remote.allowAnyHosts = true
+                  
+                  stage('Put myapp-deployment.yml') {
+                      sshPut remote: remote, from: 'myapp-deployment.yml', into: '.'
+                  }
+                  stage('Deploy myapp') {
+                      sshCommand remote: remote, command: "kubectl apply -f myapp-deployment.yml"
+                  }
+              }
+       }
 
-
-### Download a free PDF
-
- <i>If you have already purchased a print or Kindle version of this book, you can get a DRM-free PDF version at no cost.<br>Simply click on the link to claim your free PDF.</i>
-<p align="center"> <a href="https://packt.link/free-ebook/9781803233321">https://packt.link/free-ebook/9781803233321 </a> </p>
+       -- Dokerfile
+       FROM openjdk:17-slim
+       ARG JAR_FILE=target/*.jar
+       COPY ${JAR_FILE} app.jar
+       ENTRYPOINT ["java","-jar","/app.jar"]
+       
+       -- myapp-deployment.yaml
+       apiVersion: apps/v1
+       kind: Deployment
+       metadata:
+         name: myapp
+       spec:
+         replicas: 3
+         selector:
+           matchLabels:
+             app: myapp
+         template:
+           metadata:
+             labels:
+               app: myapp
+           spec:
+             containers:
+               - name: myapp-web
+                 image: dennis1945/myapp
+                 ports:
+                   - containerPort: 8080
+                 env:
+                   - name: PORT
+                     value: "8080"
+       ---
+       apiVersion: v1
+       kind: Service
+       metadata:
+         name: myapp
+       spec:
+         type: NodePort
+         ports:
+           - port: 80
+             targetPort: 8080
+         selector:
+           app: myapp
+       
+       
