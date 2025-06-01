@@ -1,11 +1,12 @@
-### CICD-with-Kubernetes
+### CICD with Kubernetes 실습 구조(Kubernetes Cluster 구성: master node(1EA), worker nodes(2EA), ArgoCD 구성)
 
 ### Labs Server List
 | Server Name        | Server Hostname    | Specs                           | IP Address     | Port Forwarding(ssh) | Port Forwarding(http) |
 | ------------------ | ------------------ | ------------------------------- | -------------- | -------------------- | --------------------- |
-| k8s-control        | k8s-control        | 2 vCPU, 4 GB RAM, 100GB Disk    | 192.168.15.101 |  25 -> 22            |  -                    |
+| k8s-control        | k8s-control        | 2 vCPU, 4 GB RAM, 100GB Disk    | 192.168.15.101 |  25 -> 22            |  -                    | 
 | worker-node-01     | worker-node-01     | 2 vCPU, 4 GB RAM, 100GB Disk    | 192.168.15.102 |  26 -> 22            |  -                    |
 | worker-node-02     | worker-node-02     | 2 vCPU, 4 GB RAM, 100GB Disk    | 192.168.15.103 |  27 -> 22            |  -                    |
+* 각각의 서버의 CPU는 2EA로 구성해야함. 1EA로 하면 실행 불가함. master node인 k8s-control은 실행시 느린 경우는 메모리를 8GB로 변경함. 다른 worker node도 Resource가 충분하면 8GB로 변환함.
 
 ### Visual Studio Code & VirtualBox
 
@@ -26,48 +27,20 @@
           code --install-extension ms-azuretools.vscode-docker
           code --install-extension vscjava.vscode-java-pack
           code --install-extension vscjava.vscode-gradle
-          code --install-extension vmware.vscode-boot-dev-pack
-          code --install-extension vscode-kubernetes-tools
-          code --install-extension vscode-docker
-          Visual Studio Code Remote SSH로 접속해서 접속이 되는지 확인
+         함
 
-### Ubuntu 64bit Server 22.04.x(Minimized) 설치 및 설정
-- After installing ubuntu 64 server minimum specifications
-- Create User => user1/1234
+### Kubernetes Install Guides 
           
-          sudo su
-          apt-get install net-tools iputils-ping nano vim
-          printf "Server Name(Each Server)" > /etc/hostname
-          printf "\n192.168.15.101 k8s-control\n192.168.15.102 worker-node-01\n192.168.15.103 worker-node-02\n\n" >> /etc/hosts
-          # 해당 터미널 세션 종류후 다시 접속
-          cat /etc/hosts
-          cat /etc/hostname
-          cat /etc/netplan/50-cloud-init.yaml
-          # ip를 수정하려면 50-cloud-init.yaml을 수정하기 위해서는 해당 파일을 생성하고 다음의 내용을 추가해야함
-          nano /etc/cloud/cloud.cfg.d/99-disable-network-config.cfg
-          network: {config: disabled}
-          nano /etc/netplan/50-cloud-init.yaml
-          => check ip or change ip
-          netplan apply
-
-### Disable swap space (all nodes) 스왑 항목을 off
-          sudo swapoff -a
-          # 재부팅 시 변경 사항을 유지하려면 /etc/fstab파일에 접근하여 스왑 항목 앞에 기호를 추가하여 주석 처리하세요 
-          swapon --show
-
-### Load Containerd modules (all nodes) 
-          sudo modprobe overlay
-          sudo modprobe br_netfilter
-          sudo tee /etc/modules-load.d/k8s.conf <<EOF
-          overlay
-          br_netfilter
-          EOF
+          # 각각의 버전별 설치 가이드
+          https://kubernetes.io/docs/setup/production-environment/tools/kubeadm/install-kubeadm/
 
 ### Configure Kubernetes IPv4 networking (all nodes)
           sudo nano   /etc/sysctl.d/k8s.conf
+          # 밑에 3줄의 내용이 k8s.conf에 입력
           net.bridge.bridge-nf-call-iptables  = 1
           net.bridge.bridge-nf-call-ip6tables = 1
           net.ipv4.ip_forward   = 1
+          # 위의 내용을 입력하고 다음 명령어 실행
           sudo sysctl --system
 
 ### Install Docker (on all nodes)
@@ -101,6 +74,7 @@
           sudo chown $(id -u):$(id -g) $HOME/.kube/config
 
 ### Install Calico network add-on plugin
+          # https://docs.tigera.io/calico/latest/getting-started/kubernetes/quickstart 설치 및 가이드
           kubectl create -f https://raw.githubusercontent.com/projectcalico/calico/v3.28.0/manifests/tigera-operator.yaml
           curl https://raw.githubusercontent.com/projectcalico/calico/v3.28.0/manifests/custom-resources.yaml -O
           sed -i 's/cidr: 192\.168\.0\.0\/16/cidr: 10.10.0.0\/16/g' custom-resources.yaml
@@ -109,17 +83,18 @@
           kubectl get pods -A
           
 ### Add worker nodes to the cluster (on worker nodes)
+
+          # worker nodes를 master node에 join시 접속 경로를 모르는 경우, 확인 방법
           kubeadm token create --print-join-command
-          kubeadm join xx.xx.xx.xx:6443 --token xxxxxxxx \
+          # 실행 명령어 형식
+          kubeadm join [master node ip 주소를 확인해서 입력]:6443 --token xxxxxxxx \
         --discovery-token-ca-cert-hash xxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 
-### 초기화
-          #################################
-          # kubeadm 초기화
-          $ sudo kubeadm reset
-          $ sudo systemctl restart kubelet
-          $ sudo reboot
-          ##################################
+### master node 초기화시
+          
+          sudo kubeadm reset
+          sudo systemctl restart kubelet
+          sudo reboot          
           
 ### Testing Kubernetes cluster
           kubectl create namespace demo-namespace
@@ -129,6 +104,67 @@
           kubectl get svc -n demo-namespace
           curl http://<any-worker-IP>:node-port
           # 예) curl http://10.168.253.29:30115 
+
+### ArgoCD 설치 및 사용방법
+  
+          https://argo-cd.readthedocs.io/en/stable/getting_started/ # 설치 가이드
+  
+          # 설치시
+          kubectl create namespace argocd
+          kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+  
+          # 설치시 설치 상태 확인
+          kubectl get pods -n argocd -w
+  
+          # 설치후 접속 방법
+          # 1. Service Type Load Balancer
+          # kubectl patch svc argocd-server -n argocd -p '{"spec": {"type": "LoadBalancer"}}'
+          # 2. Ingress
+          # 3. Port Forwarding
+          kubectl port-forward svc/argocd-server -n argocd 8080:443
+  
+          # 비밀번호를 확인 할때
+          kubectl get secret argocd-initial-admin-secret -n argocd -o jsonpath="{.data.password}" | base64 -d && echo
+  
+          # argocd-server에 접속해서 확인하기
+          # kubectl exec -it -n argocd deployment/argocd-server -- /bin/bash
+          # argocd login localhost:8080 -> admin/확인된 비밀번호(비밀번호를 확인 할때 나온 비밀번호)
+          # argocd account update-password 비빌번호를 변경하고 싶음
+
+          # default namespace를 argocd로 설정하고 싶을때
+          # kubectl get pods -n argocd
+          # kubectl config set-context --current --namespace=argocd
+          # kubectl get pods -n argocd
+          # kubectl get pods
+          # kubectl config view --minify | grep namespace:
+          # kubectl config set-context --current --namespace=default
+
+  
+          # 삭제하고 싶을때
+          kubectl delete -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+          kubectl delete namespace argocd
+
+### ArgoCD Rollouts 설치
+
+          # https://argoproj.github.io/argo-rollouts/
+          # https://github.com/argoproj/argo-rollouts
+
+          # namespace 생성
+          kubectl create namespace argo-rollouts
+          
+          # apply argo-rollouts
+          kubectl apply -n argo-rollouts -f https://github.com/argoproj/argo-rollouts/releases/latest/download/install.yaml
+          
+          # install kubectl plugin for argo rollout & 설치 확인
+          curl -LO https://github.com/argoproj/argo-rollouts/releases/latest/download/kubectl-argo-rollouts-linux-amd64
+          sudo install -o root -g root -m 0755 kubectl-argo-rollouts-linux-amd64 /usr/local/bin/kubectl-argo-rollouts
+          kubectl argo rollouts version
+
+### ArgoCD Rollouts 
+
+          # 예제(github기반)
+          https://github.com/dennislee-it
+
 ### Etc
 - Docker install Ubuntu
  
@@ -219,32 +255,3 @@
           sudo chmod 666 /var/run/docker.sock or sudo chown root:docker /var/run/docker.sock
           sudo usermod -a -G docker jenkins
 
-- Etc
-
-          kubectl create -f nginx-pod.xml
-          kubectl get pods
-          kubectl get describe pod nginx
-          kubectl port-forward nginx 9000:80
-          kubectl delete pod nginx
-          
-          kubectl apply -f declarative-deployment.yaml
-          kubectl get deployments
-          kubectl apply -f declarative-deployment.yaml
-          kubectl diff -f declarative-deployment.yaml
-          
-          kubectl get deployment nginx-declarative -o=yaml
-
-- ArgoCD
-          https://argo-cd.readthedocs.io/en/stable/getting_started/ # 설치 가이드
-
-          kubectl create namespace argocd
-          kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
-          
-          kubectl get secret argocd-initial-admin-secret -n argocd -o jsonpath="{.data.password}" | base64 -d && echo
-
-          kubectl delete -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
-          kubectl delete namespace argocd         
-
-
-       
-       
